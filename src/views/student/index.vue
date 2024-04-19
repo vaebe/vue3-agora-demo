@@ -3,7 +3,7 @@
 </script>
 
 <template>
-  $END$
+<div>学生</div>
 </template>
 
 <style scoped>

@@ -3,7 +3,7 @@
 </script>
 
 <template>
-  $END$
+<div>312312321</div>
 </template>
 
 <style scoped>
