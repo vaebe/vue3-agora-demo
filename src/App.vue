@@ -2,7 +2,7 @@
 </script>
 
 <template>
-  <div>test</div>
+<el-button>dassdsadas</el-button>
 </template>
 
 <style scoped>
