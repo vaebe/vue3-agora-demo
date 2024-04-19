@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import zhCn from 'element-plus/dist/locale/zh-cn.min.mjs'
 </script>
 
 <template>
-<el-button>dassdsadas</el-button>
+  <el-config-provider :locale="zhCn">
+    <router-view />
+  </el-config-provider>
 </template>
 
 <style scoped>
