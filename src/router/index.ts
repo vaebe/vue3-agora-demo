@@ -6,17 +6,25 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     name: 'layout',
     redirect: (to: RouteLocationNormalized) => {
-      return `${to.path}teacher`
+      return `${to.path}config`
     },
     component: () => import('@/views/layout/baseLayout.vue'),
     children: [
       {
-        path: 'teacher',
-        name: 'teacher',
+        path: 'config',
+        name: 'config',
         meta: {
-          title: '教师',
+          title: '项目设置',
         },
-        component: () => import('@/views/teacher/index.vue'),
+        component: () => import('@/views/projectConfig.vue'),
+      },
+      {
+        path: 'basicVideoCall',
+        name: 'basicVideoCall',
+        meta: {
+          title: '基础视频通话',
+        },
+        component: () => import('@/views/basicVideoCall/index.vue'),
       },
     ],
   },
