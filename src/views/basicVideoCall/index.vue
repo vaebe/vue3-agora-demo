@@ -1,71 +1,103 @@
 <script setup lang="ts">
 import {
-  ClientConfig,
   IAgoraRTCClient,
   IAgoraRTCRemoteUser,
   ICameraVideoTrack,
-  IDataChannelConfig, IMicrophoneAudioTrack
-} from "agora-rtc-sdk-ng";
+  IMicrophoneAudioTrack
+} from "agora-rtc-sdk-ng/esm";
 import { createCameraVideoTrack, createClient, createMicrophoneAudioTrack } from "agora-rtc-sdk-ng/esm";
 import { useProjectConfig } from '@/composables'
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { onBeforeUnmount, ref } from "vue";
 
+const remoteVideoUserId = ref('')
 
-let client: IAgoraRTCClient | null = null
+async function onPublished(user: IAgoraRTCRemoteUser, mediaType: 'video' | 'audio') {
+  remoteVideoUserId.value = user.uid.toString()
 
-// 创建客户端
-function initClient(opts?: ClientConfig) {
-  return createClient({ mode: 'rtc', codec: 'vp8', ...opts })
+  await client!.subscribe(user, mediaType)
+
+  if (mediaType === 'video') {
+    const remoteVideoTrack = user.videoTrack
+
+    if (remoteVideoTrack)
+      remoteVideoTrack.play('remote-video')
+  }
+
+  if (mediaType === 'audio') {
+    const remoteAudioTrack = user.audioTrack
+
+    if (remoteAudioTrack)
+      remoteAudioTrack.play()
+  }
 }
 
-type OnPublished = (user: IAgoraRTCRemoteUser, mediaType: 'audio' | 'video' | 'datachannel', config?: IDataChannelConfig) => void
+// 创建客户端事件监听
+async function onUnPublished(user: IAgoraRTCRemoteUser, mediaType: 'video' | 'audio') {
+  await client!.unsubscribe(user, mediaType)
+  const userId = user.uid.toString()
 
-interface CreateVideoOpts {
+  if (userId === '9001')
+    ElMessage('老师已停止直播!')
+}
+
+function createClientListener(client: IAgoraRTCClient) {
+  client.on('user-published', onPublished)
+  client.on('user-unpublished', onUnPublished)
+}
+
+interface ClientJoin {
   client: IAgoraRTCClient
-  videoDomId: string
-  uid?: number
-  userPublished?: OnPublished
-  userUnpublished?: OnPublished
+  uid: number
 }
 
 const { getProjectConfig, getAgoraToken } = useProjectConfig()
 
-// 创建普通直播
-async function createBasicVideoCall(opts: CreateVideoOpts) {
-  const client = opts.client
-
-  opts.userPublished && client.on('user-published', opts.userPublished)
-  opts.userUnpublished && client.on('user-unpublished', opts.userUnpublished)
+// 加入频道
+async function clientJoin(opts: ClientJoin) {
+  const { client, uid } = opts
 
   const { appId, certificate } = getProjectConfig()
-
   const appid = appId
   const channel = '6001'
-  const uid = opts.uid ?? 9001
   const token = await getAgoraToken({ uid, channel, appId, certificate })
-
-  const videoTrack = await createCameraVideoTrack()
-  const audioTrack = await createMicrophoneAudioTrack()
-
   await client.join(appid, channel, token, uid)
+}
 
-  // 创建本地音频和视频轨道
-  videoTrack.play(opts.videoDomId)
+const uid = ref(0)
 
-  await client.publish([videoTrack, audioTrack])
+let client: IAgoraRTCClient | null = null
 
-  return {
-    client,
-    videoTrack,
-    audioTrack,
+interface CreateVideoOpts {
+  videoDomId: string
+}
+
+let videoTrack: ICameraVideoTrack | null = null
+let audioTrack: IMicrophoneAudioTrack | null = null
+
+async function createBasicVideoCall(opts: CreateVideoOpts) {
+  if (uid.value < 1) {
+    ElMessage.warning('请输入 uid 且不可为 0')
+    return
   }
+
+  // 创建客户端
+  client = createClient({ mode: 'rtc', codec: 'vp8' })
+
+  // 创建连接后需要立即开启监听,否则会无法正确监听到已加入频道的用户
+  createClientListener(client)
+
+  // 加入频道
+  await clientJoin({ client, uid: uid.value })
+
+  // 创建本地音频和视频轨道并发布
+  videoTrack = await createCameraVideoTrack()
+  audioTrack = await createMicrophoneAudioTrack()
+  videoTrack.play(opts.videoDomId)
+  await client.publish([videoTrack, audioTrack])
 }
 
 const isCameraOn = ref(true)
 const isMicrophoneOn = ref(true)
-
-let videoTrack: ICameraVideoTrack | null = null
-let audioTrack: IMicrophoneAudioTrack | null = null
 
 async function toggleCamera() {
   if (!isCameraOn.value)
@@ -100,19 +132,11 @@ function leave() {
 }
 
 function init() {
-  client = initClient()
-  createBasicVideoCall({ client, videoDomId: 'local-video' }).then(res => {
-    audioTrack = res.audioTrack
-    videoTrack = res.videoTrack
-
+  createBasicVideoCall({ videoDomId: 'local-video' }).then(res => {
     isCameraOn.value = true
     isMicrophoneOn.value = true
   })
 }
-
-onMounted(() => {
-  init()
-})
 
 onBeforeUnmount(() => {
   leave()
@@ -121,24 +145,25 @@ onBeforeUnmount(() => {
 
 <template>
   <el-card>
-    <div class="flex justify-between">
-      <div class="w5/12">
-        <p class="mb-2 text-xl">远程画面</p>
-        <video id="remote-video" class="w-full bg-gray"></video>
+    <div class="flex justify-between flex-wrap">
+      <div class="w-[482px]">
+        <p class="mb-2 text-xl">远程画面: {{ remoteVideoUserId }}</p>
+        <video id="remote-video" class="w-full h-[241px] bg-gray"></video>
       </div>
-      <div class="w5/12">
-        <p class="mb-2 text-xl">本地画面</p>
-        <video id="local-video" class="w-full bg-gray"></video>
+      <div class="w-[482px]">
+        <p class="mb-2 text-xl">本地画面: {{ uid }}</p>
+        <video id="local-video" class="w-full h-[241px] bg-gray"></video>
 
         <div class="content-operation">
+          <el-input v-model.number="uid" placeholder="请输入uid" clearable></el-input>
           <el-button size="small" @click="init">
-            初始化
+            初始化并加入频道
           </el-button>
           <el-button size="small" @click="toggleCamera">
-            {{ isCameraOn ? "关闭" : "打开" }} 摄像头
+            {{ isCameraOn ? "关闭" : "打开" }}摄像头
           </el-button>
           <el-button size="small" @click="toggleMicrophone">
-            {{ isMicrophoneOn ? "关闭" : "打开" }} 麦克风
+            {{ isMicrophoneOn ? "关闭" : "打开" }}麦克风
           </el-button>
           <el-button size="small" @click="leave">
             离开频道
