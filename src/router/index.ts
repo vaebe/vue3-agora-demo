@@ -26,12 +26,38 @@ const routes: RouteRecordRaw[] = [
         },
         component: () => import('@/views/basicVideoCall/index.vue'),
       },
+      {
+        path: 'oneToManyLiveStreaming',
+        name: 'oneToManyLiveStreaming',
+        meta: {
+          title: '一对多直播',
+        },
+        component: () => import('@/components/ViewComponent.vue'),
+        children: [
+          {
+            path: 'host',
+            name: 'oneToManyLiveStreaming.host',
+            meta: {
+              title: '主播',
+            },
+            component: () => import('@/views/oneToManyLiveStreaming/host.vue'),
+          },
+          {
+            path: 'spectator',
+            name: 'oneToManyLiveStreaming.spectator',
+            meta: {
+              title: '观众',
+            },
+            component: () => import('@/views/oneToManyLiveStreaming/spectator.vue'),
+          }
+        ]
+      },
     ],
   },
 ]
 
-const router = createRouter ({
-  history: createWebHashHistory (),
+const router = createRouter({
+  history: createWebHashHistory(),
   routes,
 })
 
