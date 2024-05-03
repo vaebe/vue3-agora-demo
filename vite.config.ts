@@ -8,6 +8,7 @@ import UnoCSS from 'unocss/vite'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: process.env.NODE_ENV === 'development' ? '/' : '/vue3-agora-demo/',
   plugins: [
     vue(),
     AutoImport({
