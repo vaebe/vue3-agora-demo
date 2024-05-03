@@ -18,7 +18,12 @@ export const useProjectConfig = () => {
   }
 
   function setProjectConfig(config: ProjectConfig) {
+    if (!config.appId && !config.certificate) {
+      return
+    }
+
     localStorage.setItem(appSettingsKey, JSON.stringify(config))
+    ElMessage.success('设置成功!')
   }
 
   async function getAgoraToken(config:GetAgoraToken) {
